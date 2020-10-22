@@ -12,6 +12,10 @@ static inline void init(void) {
     //      CTL0   | CTL1   | PWR_SW | RST_SW
     DDRD  = (0<<0) | (0<<1) | (0<<5) | (0<<6);
     PORTD = (0<<0) | (0<<1) | (1<<5) | (1<<6);
+
+    GIMSK  = (1<<5);
+    PCMSK0 = (1<<7);
+    sei();
 }
 
 static inline char get_pwr_ok(void) {
@@ -24,6 +28,10 @@ static inline char get_pwr_sw(void) {
 
 static inline char get_rst_sw(void) {
     return PIND & (1<<6);
+}
+
+static inline char get_rst_pin(void) {
+    return PINB & (1<<7);
 }
 
 static inline void set_ps_on(char val) {
@@ -48,10 +56,17 @@ static inline void set_reset(char val) {
         DDRB |= (1<<7);
 }
 
-char booted = 0;
 enum pwr_state {S_OFF, S_SW, S_OK};
 
+volatile char force_rst = 0;
+
+ISR(PCINT0_vect) {
+    if(!get_rst_pin())
+        force_rst = 1;
+}
+
 void main(void) {
+    char booted = 0;
     enum pwr_state state = S_OFF;
     char pwr_sw_pre = 0, pwr_sw_post = 0;
 
@@ -76,7 +91,12 @@ void main(void) {
             }
             break;
         case S_OK:
-            set_reset(get_rst_sw());
+            if(force_rst) {
+                set_reset(0);
+                force_rst = 0;
+            } else {
+                set_reset(get_rst_sw());
+            }
             set_ps_on(0);
             booted = 1;
             if (!pwr_sw_pre && pwr_sw_post) {
