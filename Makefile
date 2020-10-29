@@ -4,8 +4,9 @@ OBJCOPY=avr-objcopy
 
 all: psu.hex
 
-program: psu.hex
+program: psu.hex fuses.conf
 	minipro -p attiny2313a -c code -f ihex -w $<
+	minipro -p attiny2313a -c config -w fuses.conf
 
 clean:
 	rm -f psu.hex psu.elf psu.o
